@@ -1,0 +1,61 @@
+name: zChat
+version: '${version}'
+main: co.xenastudios.zchat.ZChatPlugin
+api-version: '1.20.6'
+author: Xena Studios
+description: Lightweight, group-based chat formatting and moderation for Paper networks.
+website: https://github.com/xena-studios/zchat
+
+# The same jar runs on Paper, Purpur and Folia; all chat state is thread-safe and every
+# player mutation runs on the correct scheduler (see util/Schedulers).
+folia-supported: true
+
+# Commands are registered at runtime via the stable Paper Brigadier API
+# (LifecycleEvents.COMMANDS), so they are not declared here. Each command is
+# individually toggleable, aliasable and permissioned in config.yml.
+
+# Safe-by-default permissions. Moderation commands (clearchat / mutechat) and every
+# bypass node default to `op`; the harmless self-scoped /togglechat defaults to
+# everyone. Per-group formatting nodes (zchat.group.<name>) are op by default so
+# staff/VIP formats are opt-in; the ungated `default` group applies to everyone.
+permissions:
+  # ---- admin -----------------------------------------------------------------
+  zchat.admin:
+    description: Use /zchat admin subcommands (reload/info).
+    default: op
+
+  # ---- moderation commands ---------------------------------------------------
+  zchat.command.clearchat:
+    description: Clear the chat for everyone.
+    default: op
+  zchat.command.mutechat:
+    description: Toggle the global chat mute.
+    default: op
+  zchat.command.togglechat:
+    description: Toggle whether you see chat.
+    default: true
+
+  # ---- bypasses --------------------------------------------------------------
+  zchat.bypass.mute:
+    description: Speak while global chat is muted.
+    default: op
+  zchat.bypass.cooldown:
+    description: Ignore the per-player chat cooldown.
+    default: op
+  zchat.bypass.filter:
+    description: Ignore the chat word/pattern filter.
+    default: op
+  zchat.bypass.clearchat:
+    description: Keep your chat when the chat is cleared.
+    default: op
+
+  # ---- group formatting (see config.yml `formatting.groups`) -----------------
+  zchat.group.vip:
+    description: Apply the VIP chat format.
+    default: op
+  zchat.group.staff:
+    description: Apply the staff chat format.
+    default: op
+  zchat.group.admin:
+    description: Apply the admin chat format.
+    default: op

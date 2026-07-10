@@ -1,0 +1,135 @@
+# ============================================================================
+#  zChat — configuration
+#
+#  All text is MiniMessage (https://docs.advntr.dev/minimessage/format.html).
+#  Invalid values fall back to their default with a console warning; the plugin
+#  never disables itself over a bad config value. Run /zchat reload to re-apply
+#  message + behaviour values live. Structural values (which commands exist,
+#  their aliases) are applied at startup and are restart-only.
+#
+#  Leaving a permission blank ("") means "no restriction".
+# ============================================================================
+
+# Managed by the plugin; do not edit. New keys are merged in on upgrade.
+config-version: 1
+
+# ---- shared messages -------------------------------------------------------
+messages:
+  error:
+    player-only: "<red>Only players can use this command.</red>"
+    no-permission: "<red>You don't have permission to do that.</red>"
+  state:
+    enabled: "enabled"
+    disabled: "disabled"
+
+# ============================================================================
+#  Chat formatting (group-based)
+#
+#  On every chat message zChat picks the highest-weight group the sender has the
+#  permission for and renders the message with that group's `format`. The
+#  `default` group has no permission and applies to everyone as the fallback.
+#
+#  Placeholders in a format:
+#    <player>       the sender's name (plain)
+#    <displayname>  the sender's display name (component)
+#    <message>      the (filtered) message the player typed
+#
+#  Groups are matched highest-weight-first, so give staff/VIP a higher weight
+#  than default. A player with several group permissions gets the highest-weight
+#  match. Formats are the ONLY place player-typed text is inserted, and it is
+#  inserted as a component (never re-parsed), so players can't inject MiniMessage
+#  unless you explicitly grant it below.
+# ============================================================================
+formatting:
+  enabled: true
+
+  # Allow players holding this permission to use MiniMessage colour/format tags
+  # in their own messages. Blank ("") disables player formatting entirely (safe
+  # default — player text is always shown literally).
+  color-permission: "zchat.chat.color"
+
+  # The fallback format when no group matches (should always be present).
+  default-format: "<gray><player>:</gray> <white><message></white>"
+
+  groups:
+    default:
+      weight: 0
+      # No permission -> matches everyone as the fallback.
+      permission: ""
+      format: "<gray><player>:</gray> <white><message></white>"
+    vip:
+      weight: 10
+      permission: "zchat.group.vip"
+      format: "<gold>[VIP] <player></gold> <dark_gray>»</dark_gray> <white><message></white>"
+    staff:
+      weight: 20
+      permission: "zchat.group.staff"
+      format: "<aqua>[Staff] <player></aqua> <dark_gray>»</dark_gray> <white><message></white>"
+    admin:
+      weight: 30
+      permission: "zchat.group.admin"
+      format: "<red>[Admin] <player></red> <dark_gray>»</dark_gray> <white><message></white>"
+
+# ============================================================================
+#  Chat filter — block or censor configured words / regex patterns.
+#  Players with `zchat.bypass.filter` are never filtered.
+# ============================================================================
+filter:
+  enabled: true
+  # block   -> cancel the message and warn the sender.
+  # censor  -> replace each match with `censor-char` and let it through.
+  mode: censor
+  censor-char: "*"
+  # Case-insensitive. Each entry is a Java regex; a plain word matches that word
+  # anywhere. Word-boundary examples: "\\bword\\b".
+  patterns:
+    - "badword1"
+    - "badword2"
+  message-blocked: "<red>Your message was blocked by the chat filter.</red>"
+
+# ============================================================================
+#  Chat cooldown — minimum delay between a player's messages.
+#  Players with `zchat.bypass.cooldown` are never limited.
+# ============================================================================
+cooldown:
+  enabled: true
+  seconds: 3
+  # <seconds> = whole seconds remaining.
+  message: "<red>Please wait <yellow><seconds></yellow>s before chatting again.</red>"
+
+# ============================================================================
+#  /clearchat — flood the chat with blank lines to clear it.
+#  Players with `zchat.bypass.clearchat` keep their view.
+# ============================================================================
+clearchat:
+  enabled: true
+  aliases: [cc]
+  permission: "zchat.command.clearchat"
+  # How many blank lines to send (fills a typical client chat box).
+  lines: 100
+  message-cleared: "<gray>Chat was cleared by <yellow><player></yellow>.</gray>"
+
+# ============================================================================
+#  /mutechat — toggle a global chat mute. While muted, only players with
+#  `zchat.bypass.mute` can talk. The mute state is in-memory (resets on restart).
+# ============================================================================
+mutechat:
+  enabled: true
+  aliases: [mc]
+  permission: "zchat.command.mutechat"
+  message-muted: "<gray>Chat has been <red>muted</red> by <yellow><player></yellow>.</gray>"
+  message-unmuted: "<gray>Chat has been <green>unmuted</green> by <yellow><player></yellow>.</gray>"
+  # Shown to a non-bypass player who tries to talk while muted.
+  message-blocked: "<red>Chat is currently muted.</red>"
+
+# ============================================================================
+#  /togglechat — let a player hide/show chat for themselves. Toggled-off players
+#  simply stop receiving other players' messages (their own commands still work).
+#  The toggle is in-memory (resets on rejoin/restart).
+# ============================================================================
+togglechat:
+  enabled: true
+  aliases: [tc]
+  permission: "zchat.command.togglechat"
+  message-on: "<gray>Chat is now <green>shown</green>.</gray>"
+  message-off: "<gray>Chat is now <red>hidden</red>.</gray>"
