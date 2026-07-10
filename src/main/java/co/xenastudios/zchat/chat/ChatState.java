@@ -51,10 +51,12 @@ public final class ChatState {
     // ---- cooldown ----------------------------------------------------------
 
     /**
-     * Milliseconds a player must still wait, or {@code 0} if they may speak now. When
-     * {@code 0} is returned the player's timestamp is refreshed to {@code now}.
+     * Milliseconds a player must still wait, or {@code 0} if they may speak now. This is
+     * a pure read — it does NOT start the cooldown, so a message that is later blocked
+     * (e.g. by the filter) never consumes the player's cooldown. Call {@link #markSent}
+     * once the message is actually going through.
      */
-    public long remainingCooldown(UUID player, long windowMillis, long now) {
+    public long remaining(UUID player, long windowMillis, long now) {
         if (windowMillis <= 0) {
             return 0;
         }
@@ -65,8 +67,12 @@ public final class ChatState {
                 return windowMillis - elapsed;
             }
         }
-        lastMessage.put(player, now);
         return 0;
+    }
+
+    /** Record that a player successfully sent a message at {@code now}. */
+    public void markSent(UUID player, long now) {
+        lastMessage.put(player, now);
     }
 
     // ---- lifecycle ---------------------------------------------------------

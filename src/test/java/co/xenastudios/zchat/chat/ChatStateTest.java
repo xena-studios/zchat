@@ -33,22 +33,26 @@ class ChatStateTest {
     }
 
     @Test
-    void cooldownBlocksWithinWindowThenClears() {
+    void remainingIsPureUntilMarked() {
         ChatState st = new ChatState();
         UUID id = UUID.randomUUID();
         long window = 3000;
-        assertEquals(0, st.remainingCooldown(id, window, 1_000)); // first message always allowed
-        long remaining = st.remainingCooldown(id, window, 2_000); // 1s later, still cooling down
-        assertEquals(2000, remaining);
-        assertEquals(0, st.remainingCooldown(id, window, 5_000)); // window elapsed
+        // remaining() alone never starts the cooldown — repeated checks stay 0.
+        assertEquals(0, st.remaining(id, window, 1_000));
+        assertEquals(0, st.remaining(id, window, 1_500));
+
+        st.markSent(id, 2_000);                         // message actually sent
+        assertEquals(2000, st.remaining(id, window, 3_000)); // 1s later, still cooling down
+        assertEquals(0, st.remaining(id, window, 6_000));    // window elapsed
     }
 
     @Test
     void zeroWindowNeverBlocks() {
         ChatState st = new ChatState();
         UUID id = UUID.randomUUID();
-        assertEquals(0, st.remainingCooldown(id, 0, 1_000));
-        assertEquals(0, st.remainingCooldown(id, 0, 1_001));
+        st.markSent(id, 1_000);
+        assertEquals(0, st.remaining(id, 0, 1_000));
+        assertEquals(0, st.remaining(id, 0, 1_001));
     }
 
     @Test
@@ -56,9 +60,9 @@ class ChatStateTest {
         ChatState st = new ChatState();
         UUID id = UUID.randomUUID();
         st.toggleHidden(id);
-        st.remainingCooldown(id, 3000, 1_000);
+        st.markSent(id, 1_000);
         st.forget(id);
         assertFalse(st.isHidden(id));
-        assertEquals(0, st.remainingCooldown(id, 3000, 1_500)); // cooldown record was cleared
+        assertEquals(0, st.remaining(id, 3000, 1_500)); // cooldown record was cleared
     }
 }
