@@ -1,0 +1,89 @@
+name: Release
+
+# Cut a semantic-version release when a `vMAJOR.MINOR.PATCH` tag is pushed.
+# The tagged commit builds to a clean version (e.g. `2.0.0`), gets a GitHub
+# release, and is published to Modrinth (skipped automatically if Modrinth
+# isn't configured — see the publish step).
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0   # full history + tags so the git-derived version resolves clean
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build
+        run: ./gradlew build --no-daemon --stacktrace
+
+      - name: Resolve version
+        id: ver
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: zChat ${{ steps.ver.outputs.version }}
+          prerelease: false
+          make_latest: true
+          generate_release_notes: true
+          files: build/libs/zChat-*.jar
+
+      # Publish to Modrinth via the REST API (no third-party action, fully auditable).
+      # Skips cleanly if MODRINTH_TOKEN (secret) or MODRINTH_PROJECT_ID (variable)
+      # aren't set, so the release still succeeds before Modrinth is wired up.
+      - name: Publish to Modrinth
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+          GAME_VERSIONS: ${{ vars.MODRINTH_GAME_VERSIONS || '1.20.6' }}
+          LOADERS: ${{ vars.MODRINTH_LOADERS || 'paper,folia,purpur' }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -z "${MODRINTH_TOKEN:-}" ] || [ -z "${MODRINTH_PROJECT_ID:-}" ]; then
+            echo "::notice::MODRINTH_TOKEN / MODRINTH_PROJECT_ID not configured — skipping Modrinth upload."
+            exit 0
+          fi
+          JAR=$(ls build/libs/zChat-*.jar | head -1)
+          echo "Uploading $JAR to Modrinth project $MODRINTH_PROJECT_ID as version $VERSION"
+          GV_JSON=$(printf '%s' "$GAME_VERSIONS" | jq -Rc 'split(",")')
+          LD_JSON=$(printf '%s' "$LOADERS"       | jq -Rc 'split(",")')
+          DATA=$(jq -nc \
+            --arg name "zChat $VERSION" \
+            --arg vn "$VERSION" \
+            --arg pid "$MODRINTH_PROJECT_ID" \
+            --arg cl "Release $VERSION. See https://github.com/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}" \
+            --argjson gv "$GV_JSON" \
+            --argjson ld "$LD_JSON" \
+            '{name:$name, version_number:$vn, changelog:$cl, project_id:$pid,
+              game_versions:$gv, loaders:$ld, version_type:"release", featured:true,
+              dependencies:[], file_parts:["file"], primary_file:"file"}')
+          curl -sfS -X POST https://api.modrinth.com/v2/version \
+            -H "Authorization: $MODRINTH_TOKEN" \
+            -F "data=$DATA;type=application/json" \
+            -F "file=@$JAR;type=application/java-archive"
+          echo "Modrinth upload complete."

@@ -1,0 +1,70 @@
+name: Nightly
+
+# Keep a single rolling "nightly" pre-release with the freshest build of `main`.
+# Its version is the semantic nightly string (e.g. `2.0.0-nightly.3+ab12cd34`);
+# the download asset has a stable name so the URL never changes. Cut a real
+# release by pushing a `vX.Y.Z` tag (see release.yml).
+on:
+  schedule:
+    - cron: '0 4 * * *'   # 04:00 UTC daily
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0   # full history + tags so the git-derived version resolves
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build
+        run: ./gradlew build --no-daemon --stacktrace
+
+      # Stable asset name so the download URL never changes; the internal
+      # semantic nightly version still lives in the jar's paper-plugin.yml.
+      - name: Stage stable-named jar
+        run: cp build/libs/zChat-*.jar zChat-nightly.jar
+
+      # Delete the previous nightly release + tag so the recreated one below gets
+      # a fresh published timestamp and the `nightly` tag moves to this commit.
+      - name: Clear previous nightly release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete nightly --yes --cleanup-tag || true
+
+      - name: Create rolling nightly pre-release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          tag_name: nightly
+          name: Nightly build
+          prerelease: true
+          make_latest: false
+          files: zChat-nightly.jar
+          body: |
+            Rolling nightly build of the latest commit on `main`. **Pre-release — not for production.**
+
+            - Commit: `${{ github.sha }}`
+            - Ref: `${{ github.ref_name }}`
+
+            The jar's internal version (`<version>-nightly.<n>+<sha>`) identifies the exact build.
+            Stable releases are published from `vX.Y.Z` tags.
