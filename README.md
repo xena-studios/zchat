@@ -1,4 +1,4 @@
-# zChat
+![zChat by Xena Studios, a chat plugin for Paper and Folia. A chat-bubble icon and the zChat wordmark on a dark mission-control style banner with the tagline "Format your server's chat."](assets/banner.png)
 
 A **lightweight, high-performance chat plugin** for **Paper** (and Folia) networks.
 zChat handles the chat essentials almost every server wants — **group-based message
