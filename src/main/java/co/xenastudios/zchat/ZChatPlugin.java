@@ -77,11 +77,35 @@ public final class ZChatPlugin extends JavaPlugin {
      */
     public boolean reload() {
         try {
-            this.settings = ConfigLoader.load(this); // atomic swap — readers see old or new, never partial
+            Settings previous = this.settings;
+            Settings fresh = ConfigLoader.load(this);
+            warnStructural(previous, fresh);
+            this.settings = fresh; // atomic swap — readers see old or new, never partial
             return true;
         } catch (Throwable t) {
             getLogger().log(Level.SEVERE, "Reload failed; keeping previous state.", t);
             return false;
+        }
+    }
+
+    /**
+     * Command {@code enabled}/{@code aliases} are consumed once at registration, so a
+     * change to them on reload has no effect until restart. Log a warning rather than
+     * letting it silently no-op.
+     */
+    private void warnStructural(Settings previous, Settings fresh) {
+        if (previous == null) {
+            return;
+        }
+        warnIfChanged("clearchat", previous.clearChat().spec(), fresh.clearChat().spec());
+        warnIfChanged("mutechat", previous.muteChat().spec(), fresh.muteChat().spec());
+        warnIfChanged("togglechat", previous.toggleChat().spec(), fresh.toggleChat().spec());
+    }
+
+    private void warnIfChanged(String name, Settings.CommandSpec before, Settings.CommandSpec after) {
+        if (before.enabled() != after.enabled() || !before.aliases().equals(after.aliases())) {
+            getLogger().warning("Config '" + name + ".enabled/aliases' changed; this is "
+                    + "restart-only (command registration is fixed at startup).");
         }
     }
 
