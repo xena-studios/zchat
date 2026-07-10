@@ -19,7 +19,6 @@ import java.util.regex.Pattern;
  */
 public record Settings(
         Errors errors,
-        StateWords state,
         Formatting formatting,
         Filter filter,
         Cooldown cooldown,
@@ -40,9 +39,6 @@ public record Settings(
             Msg playerOnly,
             Msg noPermission
     ) {}
-
-    /** Words substituted into {@code <state>} placeholders. */
-    public record StateWords(String enabled, String disabled) {}
 
     /**
      * Group-based chat formatting. {@code groups} is sorted highest-{@code weight}

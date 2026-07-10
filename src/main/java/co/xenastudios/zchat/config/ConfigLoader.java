@@ -66,9 +66,37 @@ public final class ConfigLoader {
         }
     }
 
-    /** Build a fully-default snapshot from the code-level defaults (last resort). */
+    /**
+     * Build a fully-default snapshot from the code-level defaults (last resort). Never
+     * throws: an empty config yields every documented default, and a hard failure falls
+     * back to a hardcoded minimum so {@link #load(Plugin)} can always return a snapshot.
+     */
     public static Settings defaults(Plugin plugin) {
-        return new ConfigLoader(new YamlConfiguration(), plugin.getLogger()).build();
+        try {
+            return new ConfigLoader(new YamlConfiguration(), plugin.getLogger()).build();
+        } catch (Throwable t) {
+            plugin.getLogger().log(Level.SEVERE, "Default config build failed; using hardcoded minimum.", t);
+            return minimal();
+        }
+    }
+
+    /** Build a {@link Settings} snapshot from an arbitrary config (used by unit tests). */
+    static Settings buildFrom(FileConfiguration cfg, Logger log) {
+        return new ConfigLoader(cfg, log).build();
+    }
+
+    /** A hardcoded, dependency-free snapshot — the absolute floor if everything else fails. */
+    private static Settings minimal() {
+        Settings.CommandSpec off = new Settings.CommandSpec(false, List.of(), "");
+        return new Settings(
+                new Settings.Errors(Msg.of("<red>Only players can use this command.</red>"),
+                        Msg.of("<red>You don't have permission to do that.</red>")),
+                new Settings.Formatting(true, "", "<gray><player>:</gray> <white><message></white>", List.of()),
+                new Settings.Filter(false, Settings.Filter.Mode.CENSOR, "*", List.of(), Msg.of("")),
+                new Settings.Cooldown(false, 0, Msg.of("")),
+                new Settings.ClearChat(off, 100, Msg.of("")),
+                new Settings.MuteChat(off, Msg.of(""), Msg.of(""), Msg.of("")),
+                new Settings.ToggleChat(off, Msg.of(""), Msg.of("")));
     }
 
     private static YamlConfiguration loadBundledDefaults(Plugin plugin) {
@@ -103,12 +131,7 @@ public final class ConfigLoader {
                 msg("messages.error.no-permission", "<red>You don't have permission to do that.</red>")
         );
 
-        Settings.StateWords state = new Settings.StateWords(
-                str("messages.state.enabled", "enabled"),
-                str("messages.state.disabled", "disabled")
-        );
-
-        return new Settings(errors, state, formatting(), filter(), cooldown(),
+        return new Settings(errors, formatting(), filter(), cooldown(),
                 clearChat(), muteChat(), toggleChat());
     }
 
