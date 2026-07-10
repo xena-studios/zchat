@@ -18,9 +18,6 @@ messages:
   error:
     player-only: "<red>Only players can use this command.</red>"
     no-permission: "<red>You don't have permission to do that.</red>"
-  state:
-    enabled: "enabled"
-    disabled: "disabled"
 
 # ============================================================================
 #  Chat formatting (group-based)
@@ -29,34 +26,35 @@ messages:
 #  permission for and renders the message with that group's `format`. The
 #  `default` group has no permission and applies to everyone as the fallback.
 #
+#  Supports PlaceholderAPI (%...%) in the format when PlaceholderAPI is installed.
 #  Placeholders in a format:
 #    <player>       the sender's name (plain)
 #    <displayname>  the sender's display name (component)
 #    <message>      the (filtered) message the player typed
+#    %papi_...%     any PlaceholderAPI placeholder (optional; ignored if PAPI absent)
 #
-#  Groups are matched highest-weight-first, so give staff/VIP a higher weight
-#  than default. A player with several group permissions gets the highest-weight
-#  match. Formats are the ONLY place player-typed text is inserted, and it is
-#  inserted as a component (never re-parsed), so players can't inject MiniMessage
-#  unless you explicitly grant it below.
+#  Groups are matched highest-weight-first, so give staff/VIP a higher weight.
+#  A player with several group permissions gets the highest-weight match; a player
+#  matching NO group falls back to `default-format` below. Formats are the ONLY
+#  place player-typed text is inserted, and it is inserted as a component (never
+#  re-parsed), so players can't inject MiniMessage unless you grant the colour
+#  permission — and even then only colour/decoration tags are honoured.
 # ============================================================================
 formatting:
   enabled: true
 
-  # Allow players holding this permission to use MiniMessage colour/format tags
-  # in their own messages. Blank ("") disables player formatting entirely (safe
-  # default — player text is always shown literally).
+  # Allow players holding this permission to colour their own messages. Only
+  # colour/decoration tags are honoured (never <click>/<hover>/etc.). Blank ("")
+  # disables player colouring entirely — player text is always shown literally.
   color-permission: "zchat.chat.color"
 
-  # The fallback format when no group matches (should always be present).
+  # The single fallback format, used for any player who matches no group below.
   default-format: "<gray><player>:</gray> <white><message></white>"
 
+  # Permissioned overrides. Add/remove freely; each needs a weight, a permission
+  # (zchat.group.<name>) and a format. Leave `groups` empty to use only the
+  # default-format above.
   groups:
-    default:
-      weight: 0
-      # No permission -> matches everyone as the fallback.
-      permission: ""
-      format: "<gray><player>:</gray> <white><message></white>"
     vip:
       weight: 10
       permission: "zchat.group.vip"

@@ -59,6 +59,9 @@ repositories {
     maven("https://repo.papermc.io/repository/maven-public/") {
         name = "papermc"
     }
+    maven("https://repo.extendedclip.com/content/repositories/placeholderapi/") {
+        name = "placeholderapi"
+    }
 }
 
 dependencies {
@@ -66,6 +69,10 @@ dependencies {
     // stable Brigadier command API (io.papermc.paper.command.brigadier), non-experimental as of
     // 1.20.6. A jar compiled against 1.20.6 runs unchanged on all newer Paper releases.
     compileOnly("io.papermc.paper:paper-api:1.20.6-R0.1-SNAPSHOT")
+
+    // Optional soft dependency — compile-only. Presence is detected reflectively at runtime
+    // (util/Placeholders), so the jar runs unchanged whether or not PlaceholderAPI is installed.
+    compileOnly("me.clip:placeholderapi:2.11.6")
 
     // Available in tests so classes that reference Bukkit types resolve; the unit tests
     // themselves only exercise server-free logic.
