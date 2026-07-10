@@ -2,6 +2,7 @@ package co.xenastudios.zchat.chat;
 
 import co.xenastudios.zchat.ZChatPlugin;
 import co.xenastudios.zchat.config.Settings;
+import co.xenastudios.zchat.util.Placeholders;
 import io.papermc.paper.chat.ChatRenderer;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import net.kyori.adventure.audience.Audience;
@@ -53,10 +54,13 @@ public final class ChatListener implements Listener {
             return;
         }
 
-        // 2) Per-player cooldown.
+        // 2) Per-player cooldown (read-only check — only marked as sent once the message
+        //    survives the filter below, so a blocked message never burns the cooldown).
         Settings.Cooldown cd = s.cooldown();
-        if (cd.enabled() && !player.hasPermission("zchat.bypass.cooldown")) {
-            long remaining = st.remainingCooldown(id, cd.millis(), System.currentTimeMillis());
+        boolean cooldownApplies = cd.enabled() && !player.hasPermission("zchat.bypass.cooldown");
+        long now = System.currentTimeMillis();
+        if (cooldownApplies) {
+            long remaining = st.remaining(id, cd.millis(), now);
             if (remaining > 0) {
                 event.setCancelled(true);
                 long secs = (remaining + 999) / 1000;
@@ -75,7 +79,7 @@ public final class ChatListener implements Listener {
                 if (Filters.matchesAny(text, filter.patterns())) {
                     event.setCancelled(true);
                     player.sendMessage(filter.messageBlocked().parsed());
-                    return;
+                    return; // blocked — cooldown deliberately not marked
                 }
             } else { // CENSOR
                 String censored = Filters.censor(text, filter.patterns(), filter.censorChar());
@@ -85,16 +89,18 @@ public final class ChatListener implements Listener {
             }
         }
 
+        // The message is going through: start the cooldown now.
+        if (cooldownApplies) {
+            st.markSent(id, now);
+        }
+
         // 4) Group formatting.
         Settings.Formatting fmt = s.formatting();
         if (fmt.enabled()) {
-            // Optionally let the sender colour their own message with MiniMessage.
+            // Optionally let the sender colour their own message — with a RESTRICTED tag
+            // set (colours/decorations only), so no click/hover/insert injection.
             if (!fmt.colorPermission().isBlank() && player.hasPermission(fmt.colorPermission())) {
-                try {
-                    event.message(MM.deserialize(PLAIN.serialize(event.message())));
-                } catch (Exception ignored) {
-                    // Keep the plain message on a malformed tag.
-                }
+                event.message(PlayerColors.parse(PLAIN.serialize(event.message())));
             }
             String template = resolveGroupFormat(player, fmt);
             event.renderer(ChatRenderer.viewerUnaware((source, displayName, message) ->
@@ -124,7 +130,10 @@ public final class ChatListener implements Listener {
 
     private static Component render(String template, Player source, Component displayName, Component message) {
         try {
-            return MM.deserialize(template,
+            // Expand PlaceholderAPI tokens in the format template (never the player's
+            // message); a no-op when PAPI isn't installed.
+            String expanded = Placeholders.apply(source, template);
+            return MM.deserialize(expanded,
                     Placeholder.unparsed("player", source.getName()),
                     Placeholder.component("displayname", displayName),
                     Placeholder.component("message", message));

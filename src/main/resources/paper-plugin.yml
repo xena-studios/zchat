@@ -10,6 +10,14 @@ website: https://github.com/xena-studios/zchat
 # player mutation runs on the correct scheduler (see util/Schedulers).
 folia-supported: true
 
+# PlaceholderAPI is optional: expanded in group formats when present, ignored when absent.
+dependencies:
+  server:
+    PlaceholderAPI:
+      load: BEFORE
+      required: false
+      join-classpath: true
+
 # Commands are registered at runtime via the stable Paper Brigadier API
 # (LifecycleEvents.COMMANDS), so they are not declared here. Each command is
 # individually toggleable, aliasable and permissioned in config.yml.
@@ -47,6 +55,11 @@ permissions:
     default: op
   zchat.bypass.clearchat:
     description: Keep your chat when the chat is cleared.
+    default: op
+
+  # ---- formatting ------------------------------------------------------------
+  zchat.chat.color:
+    description: Use MiniMessage colours/formatting in your own messages.
     default: op
 
   # ---- group formatting (see config.yml `formatting.groups`) -----------------
