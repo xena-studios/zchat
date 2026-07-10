@@ -17,7 +17,7 @@ value. A malformed format template falls back to a plain rendering rather than d
 message.
 
 > **v2.** This is a from-scratch rewrite of the archived
-> [zChat v1](https://modrinth.com/plugin/zchat) — now **GPLv3-only**, faster, lighter,
+> [zChat v1](https://github.com/mrzcookie/zchat) — now **GPLv3-only**, faster, lighter,
 > Folia-ready, and dependency-free (no hard LuckPerms requirement).
 
 ---
@@ -25,10 +25,13 @@ message.
 ## Features
 
 - **Group chat formatting** — each message is rendered with the highest-`weight` group
-  the sender has permission for (`zchat.group.<name>`), falling back to an open `default`
-  group. Formats are MiniMessage with `<player>`, `<displayname>` and `<message>`
-  placeholders. Player text is inserted as a component (never re-parsed), so players
-  can't inject markup — unless you grant the optional colour permission.
+  the sender has permission for (`zchat.group.<name>`), falling back to `default-format`.
+  Formats are MiniMessage with `<player>`, `<displayname>`, `<message>` and optional
+  PlaceholderAPI `%…%` placeholders. Player text is inserted as a component (never
+  re-parsed), so players can't inject markup — and even with the optional colour
+  permission only colour/decoration tags are honoured (never `<click>`/`<hover>`).
+- **PlaceholderAPI (optional)** — `%…%` placeholders in formats expand when
+  PlaceholderAPI is installed, and are ignored when it isn't. No hard dependency.
 - **Chat filter** — block or censor configurable words / regex patterns (case-insensitive,
   pre-compiled). `block` cancels the message; `censor` masks each match with a configurable
   character. Bypass with `zchat.bypass.filter`.
@@ -61,7 +64,8 @@ message.
 - **Java 21 runtime.** The jar is compiled to Java 21 bytecode, so the server must run on
   Java 21+ (standard on modern networks).
 - **No hard dependencies.** Groups resolve by permission node, so any permissions plugin
-  (LuckPerms, etc.) works — none is required.
+  (LuckPerms, etc.) works — none is required. **PlaceholderAPI** is an optional soft
+  dependency: install it to use `%…%` placeholders in formats.
 
 ---
 
@@ -110,9 +114,10 @@ the plugin never disables itself over config. Leaving a permission blank (`""`) 
 | `default-format` | *(set)* | Fallback format when no group matches. |
 | `groups.<name>.weight` | `0` | Higher weight wins when a player matches several groups. |
 | `groups.<name>.permission` | *(set)* | Node that selects this format (blank = applies to everyone). |
-| `groups.<name>.format` | *(set)* | MiniMessage template; `<player>`, `<displayname>`, `<message>`. |
+| `groups.<name>.format` | *(set)* | MiniMessage template; `<player>`, `<displayname>`, `<message>`, `%papi%`. |
 
-Ships `default`, `vip`, `staff`, `admin` groups — edit, delete, or add your own.
+Ships `vip`, `staff`, `admin` groups — edit, delete, or add your own. A player matching
+**no** group uses `default-format`; leave `groups` empty to format everyone with it.
 
 ### Filter (`filter`)
 
@@ -159,7 +164,7 @@ Each shares `enabled`, `aliases` and `permission`, plus its own messages:
 | `zchat.bypass.cooldown` | op | Ignore the chat cooldown. |
 | `zchat.bypass.filter` | op | Ignore the chat filter. |
 | `zchat.bypass.clearchat` | op | Keep your chat on `/clearchat`. |
-| `zchat.chat.color` | *(unset)* | Use MiniMessage colours in your own messages. |
+| `zchat.chat.color` | op | Use MiniMessage colours in your own messages (colour/decoration tags only). |
 | `zchat.group.vip` / `.staff` / `.admin` | op | Apply that group's chat format. |
 
 All permissions are declared in `paper-plugin.yml` with these defaults so the plugin is

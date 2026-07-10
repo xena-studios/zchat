@@ -71,7 +71,11 @@ of a hard LuckPerms dependency).
 - **Formatting is the only place player text is inserted**, and it goes in as a
   `Component` (never re-parsed), so players can't inject MiniMessage — unless they hold
   the configurable `formatting.color-permission`, which opts them into colouring their
-  own message.
+  own message via a **restricted** MiniMessage (`chat/PlayerColors`: colour/decoration
+  tags only — never `<click>`/`<hover>`/`<insert>`, so no clickable-exploit vector).
+- **PlaceholderAPI is an optional soft-depend** (`util/Placeholders`, guarded by a
+  one-time class check) expanded in the format template only — never in the player's
+  message — so a player can't smuggle a `%placeholder%` into chat. Absent PAPI = no-op.
 - **Group resolution is O(groups).** Groups are sorted highest-`weight`-first at load;
   the listener returns the first group whose permission the sender holds (or the open
   `default` group / `default-format`). No per-player caching — a permission lookup is
@@ -104,7 +108,8 @@ the ungated `default` group applies to everyone. Bypasses: `zchat.bypass.mute`,
 
 ## Status
 Full plugin skeleton, server-free unit tests (`Filters` censor/match, `ChatState`
-cooldown/toggle/mute), CI (`build.yml` + `nightly.yml` + `release.yml`), README, and a
+cooldown/toggle/mute, `PlayerColors` tag-restriction, `ConfigLoader` validation), CI
+(`build.yml` + `nightly.yml` + `release.yml`), README, and a
 fully-commented `config.yml`. The rolling `nightly` pre-release carries a stable
 `zChat-nightly.jar` built from `main`; semantic releases are cut by pushing a `vX.Y.Z`
 tag, which also publishes to Modrinth.
@@ -113,6 +118,13 @@ tag, which also publishes to Modrinth.
 - **No LuckPerms dependency.** v1 required LuckPerms; v2 resolves format groups purely by
   permission node (`zchat.group.<name>`) so it runs standalone. LuckPerms (or any perms
   plugin) still drives who holds those nodes.
+- **Single fallback format.** `formatting.default-format` is the one no-match fallback; an
+  open (permission-less) group is still supported if an operator adds one, but none ships
+  — this removed the earlier redundant open `default` group.
+- **Colour permission is tag-restricted**, PAPI is expanded on the template only, and the
+  cooldown is only marked once a message survives the filter — a blocked message never
+  burns a player's cooldown. Runtime `ChatState` splits the read-only `remaining` check
+  from `markSent` for this reason.
 - Group formats are **data-driven** (config-map key = group name), each with a `weight`
   (tie-break / priority), a gate `permission` (blank = open), and a MiniMessage `format`.
 - Runtime state is deliberately **in-memory only** (mute/toggle/cooldown) to stay
@@ -124,13 +136,14 @@ tag, which also publishes to Modrinth.
 - `.idea/` is untracked and gitignored.
 
 ## Follow-ups (not required by the brief)
-- **PlaceholderAPI** integration (v1 had it) — a soft-depend hook to expand `%papi%`
-  placeholders inside formats when PAPI is present. Left out of v2 core to stay
-  dependency-free; add as an optional integration.
 - Per-world / per-channel formatting, private messaging, and join/leave message control
   are candidate future features, not in the current scope.
-- Config-validation is covered for server-free logic; the full `ConfigLoader.load` path
-  would need MockBukkit to test end-to-end.
-- Not yet smoke-tested on a live 1.20.6 / latest Paper / Folia server before production use.
+- The filter matches literal text / regex only — no normalization, so leetspeak and
+  spacing bypass it (and substring patterns hit the Scunthorpe problem). Documented; a
+  normalization pass is a candidate improvement.
+- Config-validation is covered via the `ConfigLoader.buildFrom` seam (enum/clamp/regex/
+  sort); the full `load(Plugin)` disk path would still need MockBukkit end-to-end.
+- **Not yet smoke-tested on a live 1.20.6 / latest Paper / Folia server** before
+  production use — the outstanding pre-production gap.
 
 Remote: `git@github.com:xena-studios/zchat.git`.
